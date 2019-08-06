@@ -43,7 +43,7 @@ class RemoteRendering(QgsTask):
 
                 # if msg is exit stop
                 if data == 'exit':
-                    self.socket.sendto(b'exit', self.write_target)
+                    self.socket.sendto(config.EXIT_KEYWORD.encode(), self.write_target)
                     QgsMessageLog.logMessage('stop listening')
                     return True
 
@@ -77,6 +77,6 @@ def start_remote_rendering_task():
 def stop_remote_rendering_task():
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        sock.sendto(b'exit', (config.QGIS_IP, config.QGIS_READ_PORT))
+        sock.sendto(config.EXIT_KEYWORD.encode(), (config.QGIS_IP, config.QGIS_READ_PORT))
     finally:
         sock.close()

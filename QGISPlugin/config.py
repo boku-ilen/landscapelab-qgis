@@ -6,5 +6,6 @@ UDP_BUFFER_SIZE = 1024
 
 output_path = 'C:/landscapelab/qgis/outputImage.png'
 
-RENDER_KEYWORD = 'render '
-UPDATE_KEYWORD = 'update '
+RENDER_KEYWORD = 'render:'
+UPDATE_KEYWORD = 'update:'
+EXIT_KEYWORD = 'exit'
