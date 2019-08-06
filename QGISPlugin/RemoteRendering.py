@@ -23,7 +23,7 @@ class RemoteRendering(QgsTask):
         QgsMessageLog.logMessage('setting up RemoteRendering Task')
 
         # define image path
-        self.image_location = os.path.join(QgsProject.instance().homePath(), 'outputImage.png')
+        self.image_location = config.output_path
 
         # setup UDP socket
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
