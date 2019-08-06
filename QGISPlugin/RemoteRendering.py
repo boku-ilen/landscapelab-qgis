@@ -72,3 +72,11 @@ def start_remote_rendering_task():
     QgsApplication.taskManager().addTask(remote_render_task)
 
     return remote_render_task
+
+
+def stop_remote_rendering_task():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        sock.sendto(b'exit', (config.QGIS_IP, config.QGIS_READ_PORT))
+    finally:
+        sock.close()
