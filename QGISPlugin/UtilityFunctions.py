@@ -4,7 +4,7 @@ from qgis.core import *
 
 
 # code mainly from https://github.com/opensourceoptions/pyqgis-tutorials/blob/master/015_render-map-layer.py
-def render_image(extent, image_width, image_location):
+def render_image(extent, crs_name, image_width, image_location):
 
     ratio = extent.width() / extent.height()
 
@@ -26,7 +26,13 @@ def render_image(extent, image_width, image_location):
 
     # set extent
     ms.setExtent(extent)
-    ms.setDestinationCrs(layers[0].crs())
+
+    crs = QgsCoordinateReferenceSystem(crs_name)
+    if not crs.isValid():
+        QgsMessageLog.logMessage("ERROR: Invalid CRS!")
+        return
+
+    ms.setDestinationCrs(crs)
     # QApplication.processEvents()
 
     # set output size

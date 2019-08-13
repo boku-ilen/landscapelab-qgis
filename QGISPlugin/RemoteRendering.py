@@ -51,11 +51,12 @@ class RemoteRendering(QgsTask):
                     render_info = data[len(config.RENDER_KEYWORD):]
                     render_info = render_info.split(' ')
                     image_width = int(render_info[0])
-                    extent_info = render_info[1:5]
+                    crs = render_info[1]
+                    extent_info = render_info[2:6]
 
                     extent = QgsRectangle(float(extent_info[0]), float(extent_info[1]), float(extent_info[2]), float(extent_info[3]))
 
-                    render_image(extent, image_width, self.image_location)
+                    render_image(extent, crs, image_width, self.image_location)
                     update_msg =  '{}{} {} {} {}'.format(config.UPDATE_KEYWORD, extent_info[0], extent_info[1], extent_info[2], extent_info[3])
                     self.socket.sendto(
                         update_msg.encode(),
