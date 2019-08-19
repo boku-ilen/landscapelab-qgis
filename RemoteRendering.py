@@ -1,11 +1,11 @@
 # NOTE since this script is executed in the QGIS-Python environment
 #  PyCharm might wrongfully mark some libraries/classes as unknown
+import os
 import socket
 from qgis.core import *
 from qgis.utils import *
-from UtilityFunctions import render_image
-import config
-
+from .UtilityFunctions import render_image
+from .config import config
 """
 NOTE: in order for this script to work, the QGIS plugin PowerPan has to be installed
 
@@ -28,9 +28,11 @@ class RemoteRendering(QgsTask):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.socket.bind((config.QGIS_IP, config.QGIS_READ_PORT))
         self.write_target = (config.QGIS_IP, config.LEGO_READ_PORT)
+        self.active = False
 
     # listens on socket for commands and
     def run(self):
+        self.active = True
 
         try:
             QgsMessageLog.logMessage('starting to listen for messages')
@@ -65,6 +67,7 @@ class RemoteRendering(QgsTask):
 
         finally:
             self.socket.close()
+            self.active = False
 
     @staticmethod
     def start_remote_rendering_task():
