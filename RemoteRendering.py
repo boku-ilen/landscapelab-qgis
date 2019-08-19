@@ -1,6 +1,5 @@
 # NOTE since this script is executed in the QGIS-Python environment
 #  PyCharm might wrongfully mark some libraries/classes as unknown
-import os
 import socket
 from qgis.core import *
 from qgis.utils import *
@@ -67,17 +66,17 @@ class RemoteRendering(QgsTask):
         finally:
             self.socket.close()
 
+    @staticmethod
+    def start_remote_rendering_task():
+        remote_render_task = RemoteRendering()
+        QgsApplication.taskManager().addTask(remote_render_task)
 
-def start_remote_rendering_task():
-    remote_render_task = RemoteRendering()
-    QgsApplication.taskManager().addTask(remote_render_task)
+        return remote_render_task
 
-    return remote_render_task
-
-
-def stop_remote_rendering_task():
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        sock.sendto(config.EXIT_KEYWORD.encode(), (config.QGIS_IP, config.QGIS_READ_PORT))
-    finally:
-        sock.close()
+    @staticmethod
+    def stop_remote_rendering_task():
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            sock.sendto(config.EXIT_KEYWORD.encode(), (config.QGIS_IP, config.QGIS_READ_PORT))
+        finally:
+            sock.close()
