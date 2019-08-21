@@ -19,7 +19,7 @@ class RemoteRendering(QgsTask):
     def __init__(self):
         super().__init__('remote control listener task', QgsTask.CanCancel)
 
-        QgsMessageLog.logMessage('setting up RemoteRendering Task')
+        QgsMessageLog.logMessage('setting up RemoteRendering Task', config.MESSAGE_CATEGORY, Qgis.Info)
 
         # define image path
         self.image_location = config.output_path
@@ -35,17 +35,18 @@ class RemoteRendering(QgsTask):
         self.active = True
 
         try:
-            QgsMessageLog.logMessage('starting to listen for messages')
+            QgsMessageLog.logMessage('starting to listen for messages', config.MESSAGE_CATEGORY, Qgis.Info)
             while True:
                 # wait for msg
                 data, addr = self.socket.recvfrom(config.UDP_BUFFER_SIZE)
                 data = data.decode()
-                QgsMessageLog.logMessage('got message {} from address {}'.format(data, addr))
+                QgsMessageLog.logMessage('got message {} from address {}'.format(data, addr),
+                                         config.MESSAGE_CATEGORY, Qgis.Info)
 
                 # if msg is exit stop
                 if data == 'exit':
                     self.socket.sendto(config.EXIT_KEYWORD.encode(), self.write_target)
-                    QgsMessageLog.logMessage('stop listening')
+                    QgsMessageLog.logMessage('stop listening', config.MESSAGE_CATEGORY, Qgis.Info)
                     return True
 
                 if data.startswith(config.RENDER_KEYWORD):
@@ -63,7 +64,7 @@ class RemoteRendering(QgsTask):
                         update_msg.encode(),
                         self.write_target
                     )
-                    QgsMessageLog.logMessage('sent: {}'.format(update_msg))
+                    QgsMessageLog.logMessage('sent: {}'.format(update_msg), config.MESSAGE_CATEGORY, Qgis.Info)
 
         finally:
             self.socket.close()

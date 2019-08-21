@@ -13,5 +13,7 @@ class config:
     UPDATE_KEYWORD = 'update:'
     EXIT_KEYWORD = 'exit'
 
+    MESSAGE_CATEGORY = "Remote Rendering Plugin"
+
     def __init__(self):
         pass
