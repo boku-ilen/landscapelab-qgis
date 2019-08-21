@@ -24,6 +24,8 @@
 from qgis.PyQt.QtCore import QSettings, QTranslator, QCoreApplication
 from qgis.PyQt.QtGui import QIcon
 from qgis.PyQt.QtWidgets import QAction
+from qgis.core import QgsMessageLog
+from .config import config
 
 # Initialize Qt resources from file resources.py
 from .resources import *
@@ -69,6 +71,7 @@ class RemoteRenderer:
         self.first_start = None
 
         self.rendering_task = None
+        self.re_render_action = None
 
     # noinspection PyMethodMayBeStatic
     def tr(self, message):
@@ -95,7 +98,8 @@ class RemoteRenderer:
         add_to_toolbar=True,
         status_tip=None,
         whats_this=None,
-        parent=None):
+        parent=None
+    ):
         """Add a toolbar icon to the toolbar.
 
         :param icon_path: Path to the icon for this action. Can be a resource
@@ -165,9 +169,18 @@ class RemoteRenderer:
         icon_path = ':/plugins/remote_renderer/icon.png'
         self.add_action(
             icon_path,
-            text=self.tr(u'Toggle Remote rendering'),
+            text=self.tr(u'Toggle Remote Rendering'),
             callback=self.toggle_rendering,
-            parent=self.iface.mainWindow())
+            parent=self.iface.mainWindow()
+        )
+
+        self.re_render_action = self.add_action(
+            icon_path,
+            text=self.tr(u'Re-Render Last Request'),
+            callback=self.re_render_last_request,
+            parent=self.iface.mainWindow(),
+            enabled_flag=False
+        )
 
         # will be set False in run()
         self.first_start = True
@@ -208,10 +221,31 @@ class RemoteRenderer:
         if self.render_task_active():
             RemoteRendering.stop_remote_rendering_task()
         else:
-            self.rendering_task = RemoteRendering.start_remote_rendering_task()
+            self.rendering_task = RemoteRendering.start_remote_rendering_task(self.update_re_render_action)
 
     def render_task_active(self):
         if self.rendering_task is None:
             return False
 
         return self.rendering_task.active
+
+    def re_render_last_request(self):
+        if self.is_re_render_possible():
+            self.rendering_task.handle_request(self.rendering_task.last_request)
+            return
+
+        QgsMessageLog.logMessage('could not re render last request', config.MESSAGE_CATEGORY, Qgis.Warning)
+
+    # checks if the re render action can be performed and sets its enabled state accordingly
+    def update_re_render_action(self):
+        if self.is_re_render_possible():
+            self.re_render_action.setEnabled(True)
+        else:
+            self.re_render_action.setEnabled(False)
+
+    def is_re_render_possible(self):
+        if self.rendering_task:
+            if self.rendering_task.active:
+                if self.rendering_task.last_request:
+                    return True
+        return False

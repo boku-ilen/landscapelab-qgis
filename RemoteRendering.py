@@ -2,10 +2,12 @@
 #  PyCharm might wrongfully mark some libraries/classes as unknown
 import os
 import socket
+from typing import Callable
 from qgis.core import *
 from qgis.utils import *
 from .UtilityFunctions import render_image
 from .config import config
+
 """
 NOTE: in order for this script to work, the QGIS plugin PowerPan has to be installed
 
@@ -16,7 +18,7 @@ then call 'import QGIS_POC1' in the QGIS pyton console
 
 class RemoteRendering(QgsTask):
 
-    def __init__(self):
+    def __init__(self, finished_request_callback: Callable):
         super().__init__('remote control listener task', QgsTask.CanCancel)
 
         QgsMessageLog.logMessage('setting up RemoteRendering Task', config.MESSAGE_CATEGORY, Qgis.Info)
@@ -29,6 +31,8 @@ class RemoteRendering(QgsTask):
         self.socket.bind((config.QGIS_IP, config.QGIS_READ_PORT))
         self.write_target = (config.QGIS_IP, config.LEGO_READ_PORT)
         self.active = False
+        self.last_request = None
+        self.finished_request_callback = finished_request_callback
 
     # listens on socket for commands and
     def run(self):
@@ -49,26 +53,35 @@ class RemoteRendering(QgsTask):
                     QgsMessageLog.logMessage('stop listening', config.MESSAGE_CATEGORY, Qgis.Info)
                     return True
 
-                if data.startswith(config.RENDER_KEYWORD):
-                    render_info = data[len(config.RENDER_KEYWORD):]
-                    render_info = render_info.split(' ')
-                    image_width = int(render_info[0])
-                    crs = render_info[1]
-                    extent_info = render_info[2:6]
-
-                    extent = QgsRectangle(float(extent_info[0]), float(extent_info[1]), float(extent_info[2]), float(extent_info[3]))
-
-                    render_image(extent, crs, image_width, self.image_location)
-                    update_msg =  '{}{} {} {} {}'.format(config.UPDATE_KEYWORD, extent_info[0], extent_info[1], extent_info[2], extent_info[3])
-                    self.socket.sendto(
-                        update_msg.encode(),
-                        self.write_target
-                    )
-                    QgsMessageLog.logMessage('sent: {}'.format(update_msg), config.MESSAGE_CATEGORY, Qgis.Info)
+                self.handle_request(data)
+                self.last_request = data
+                self.finished_request_callback()
 
         finally:
             self.socket.close()
             self.active = False
+            self.finished_request_callback()
+
+    def handle_request(self, request):
+
+        if request.startswith(config.RENDER_KEYWORD):
+            render_info = request[len(config.RENDER_KEYWORD):]
+            render_info = render_info.split(' ')
+            image_width = int(render_info[0])
+            crs = render_info[1]
+            extent_info = render_info[2:6]
+
+            extent = QgsRectangle(float(extent_info[0]), float(extent_info[1]), float(extent_info[2]),
+                                  float(extent_info[3]))
+
+            render_image(extent, crs, image_width, self.image_location)
+            update_msg = '{}{} {} {} {}'.format(config.UPDATE_KEYWORD, extent_info[0], extent_info[1], extent_info[2],
+                                                extent_info[3])
+            self.socket.sendto(
+                update_msg.encode(),
+                self.write_target
+            )
+            QgsMessageLog.logMessage('sent: {}'.format(update_msg), config.MESSAGE_CATEGORY, Qgis.Info)
 
     def cancel(self):
         RemoteRendering.stop_remote_rendering_task()
@@ -77,8 +90,8 @@ class RemoteRendering(QgsTask):
         super().cancel()
 
     @staticmethod
-    def start_remote_rendering_task():
-        remote_render_task = RemoteRendering()
+    def start_remote_rendering_task(finished_request_callback: Callable):
+        remote_render_task = RemoteRendering(finished_request_callback)
         QgsApplication.taskManager().addTask(remote_render_task)
 
         return remote_render_task
