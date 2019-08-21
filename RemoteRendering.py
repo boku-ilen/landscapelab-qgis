@@ -70,6 +70,12 @@ class RemoteRendering(QgsTask):
             self.socket.close()
             self.active = False
 
+    def cancel(self):
+        RemoteRendering.stop_remote_rendering_task()
+        QgsMessageLog.logMessage('Task "{name}" was canceled'.format(name=self.description()),
+            config.MESSAGE_CATEGORY, Qgis.Info)
+        super().cancel()
+
     @staticmethod
     def start_remote_rendering_task():
         remote_render_task = RemoteRendering()
