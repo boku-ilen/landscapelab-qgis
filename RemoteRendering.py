@@ -87,12 +87,15 @@ class RemoteRendering(QgsTask):
             render_image(extent, crs, image_width, self.image_location)
             update_msg = '{}{} {} {} {}'.format(config.UPDATE_KEYWORD, extent_info[0], extent_info[1], extent_info[2],
                                                 extent_info[3])
-            self.socket.sendto(
-                update_msg.encode(),
-                self.write_target
-            )
-            QgsMessageLog.logMessage('sent: {}'.format(update_msg), config.MESSAGE_CATEGORY, Qgis.Info)
+            self.send(update_msg)
 
+    # sends a given message to the lego client
+    def send(self, msg):
+
+        self.socket.sendto(msg.encode(), self.write_target)
+        QgsMessageLog.logMessage('sent: {}'.format(msg), config.MESSAGE_CATEGORY, Qgis.Info)
+
+    # cancels the task
     def cancel(self):
         RemoteRendering.stop_remote_rendering_task()
         QgsMessageLog.logMessage('Task "{name}" was canceled'.format(name=self.description()),
