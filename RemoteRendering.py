@@ -41,21 +41,31 @@ class RemoteRendering(QgsTask):
         try:
             QgsMessageLog.logMessage('starting to listen for messages', config.MESSAGE_CATEGORY, Qgis.Info)
             while True:
-                # wait for msg
-                data, addr = self.socket.recvfrom(config.UDP_BUFFER_SIZE)
-                data = data.decode()
-                QgsMessageLog.logMessage('got message {} from address {}'.format(data, addr),
-                                         config.MESSAGE_CATEGORY, Qgis.Info)
 
-                # if msg is exit stop
-                if data == 'exit':
-                    self.socket.sendto(config.EXIT_KEYWORD.encode(), self.write_target)
-                    QgsMessageLog.logMessage('stop listening', config.MESSAGE_CATEGORY, Qgis.Info)
-                    return True
+                try:
+                    # wait for msg
+                    data, addr = self.socket.recvfrom(config.UDP_BUFFER_SIZE)
+                    data = data.decode()
+                    QgsMessageLog.logMessage('got message {} from address {}'.format(data, addr),
+                                             config.MESSAGE_CATEGORY, Qgis.Info)
 
-                self.handle_request(data)
-                self.last_request = data
-                self.finished_request_callback()
+                    # if msg is exit stop
+                    if data == 'exit':
+                        self.socket.sendto(config.EXIT_KEYWORD.encode(), self.write_target)
+                        QgsMessageLog.logMessage('stop listening', config.MESSAGE_CATEGORY, Qgis.Info)
+                        return True
+
+                    self.handle_request(data)
+                    self.last_request = data
+                    self.finished_request_callback()
+
+                except ConnectionResetError:
+                    QgsMessageLog.logMessage('Connection was reset. Setting up new connection',
+                                             config.MESSAGE_CATEGORY, Qgis.Warning)
+                    self.socket.close()
+
+                    self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                    self.socket.bind((config.QGIS_IP, config.QGIS_READ_PORT))
 
         finally:
             self.socket.close()
