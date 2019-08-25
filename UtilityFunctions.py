@@ -5,7 +5,7 @@ from .config import config
 
 
 # code mainly from https://github.com/opensourceoptions/pyqgis-tutorials/blob/master/015_render-map-layer.py
-def render_image(extent, crs_name, image_width, image_location):
+def render_image(extent, crs_name, image_width, image_location, render_finish_callback):
 
     ratio = extent.width() / extent.height()
 
@@ -30,7 +30,9 @@ def render_image(extent, crs_name, image_width, image_location):
 
     crs = QgsCoordinateReferenceSystem(crs_name)
     if not crs.isValid():
-        QgsMessageLog.logMessage("ERROR: Invalid CRS! Aborting rendering process.", config.MESSAGE_CATEGORY, Qgis.Critical)
+        QgsMessageLog.logMessage(
+            "ERROR: Invalid CRS! Aborting rendering process.", config.MESSAGE_CATEGORY, Qgis.Critical
+        )
         return
 
     ms.setDestinationCrs(crs)
@@ -39,11 +41,9 @@ def render_image(extent, crs_name, image_width, image_location):
     # set output size
     ms.setOutputSize(img.size())
 
-    # setup qgis map renderer
-    render = QgsMapRendererParallelJob(ms)
-    render.start()
-    render.waitForFinished()
-    img = render.renderedImage()
+    # render image
+    render_task = QgsMapRendererTask(ms, image_location, "PNG", False)
+    # render_task.addDecorations() TODO
+    render_task.taskCompleted.connect(render_finish_callback)
+    QgsApplication.taskManager().addTask(render_task)
 
-    # save the image
-    img.save(image_location)

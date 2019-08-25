@@ -3,6 +3,7 @@
 import os
 import socket
 from typing import Callable
+from functools import partial
 from qgis.core import *
 from qgis.utils import *
 from .UtilityFunctions import render_image
@@ -81,13 +82,19 @@ class RemoteRendering(QgsTask):
             crs = render_info[1]
             extent_info = render_info[2:6]
 
-            extent = QgsRectangle(float(extent_info[0]), float(extent_info[1]), float(extent_info[2]),
-                                  float(extent_info[3]))
+            extent = QgsRectangle(
+                float(extent_info[0]), float(extent_info[1]),
+                float(extent_info[2]),float(extent_info[3])
+            )
 
-            render_image(extent, crs, image_width, self.image_location)
-            update_msg = '{}{} {} {} {}'.format(config.UPDATE_KEYWORD, extent_info[0], extent_info[1], extent_info[2],
-                                                extent_info[3])
-            self.send(update_msg)
+            update_msg = '{}{} {} {} {}'.format(
+                config.UPDATE_KEYWORD,
+                extent_info[0], extent_info[1], extent_info[2], extent_info[3]
+            )
+
+            render_finish_callback = partial(self.send, update_msg)
+
+            render_image(extent, crs, image_width, self.image_location, render_finish_callback)
 
     # sends a given message to the lego client
     def send(self, msg):
