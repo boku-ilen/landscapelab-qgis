@@ -1,7 +1,9 @@
 from PyQt5.QtGui import *
-from PyQt5.QtCore import QSize
+from PyQt5.QtCore import QSize, QRectF
 from qgis.core import *
 from .config import config
+
+LAYOUT_NAME = "Remote Rendering Layout"
 
 
 # code mainly from https://github.com/opensourceoptions/pyqgis-tutorials/blob/master/015_render-map-layer.py
@@ -10,7 +12,8 @@ def render_image(extent, crs_name, image_width, image_location, render_finish_ca
     ratio = extent.width() / extent.height()
 
     # create image
-    img = QImage(QSize(image_width, image_width / ratio), QImage.Format_ARGB32_Premultiplied)
+    im_size = QSize(image_width, image_width / ratio)
+    img = QImage(im_size, QImage.Format_ARGB32_Premultiplied)
 
     # set background color
     color = QColor(255, 255, 255, 0)
@@ -41,9 +44,39 @@ def render_image(extent, crs_name, image_width, image_location, render_finish_ca
     # set output size
     ms.setOutputSize(img.size())
 
-    # render image
-    render_task = QgsMapRendererTask(ms, image_location, "PNG", False)
-    # render_task.addDecorations() TODO
-    render_task.taskCompleted.connect(render_finish_callback)
-    QgsApplication.taskManager().addTask(render_task)
+    # setup layout
+    project = QgsProject.instance()
+    manager = project.layoutManager()
+    layout_list = manager.printLayouts()
 
+    # if layout with LAYOUT_NAME already exists remove it
+    for layout in layout_list:
+        if layout.name() == LAYOUT_NAME:
+            manager.removeLayout(layout)
+    layout = QgsPrintLayout(project)
+    layout.initializeDefaults()
+    layout.setName(LAYOUT_NAME)
+    manager.addLayout(layout)
+
+    map = QgsLayoutItemMap(layout)
+    map.setRect(20, 20, 20, 20)
+
+    # set map extent
+    rect = QgsRectangle(extent)
+    rect.scale(1.0)
+    map.setExtent(rect)
+    map.setBackgroundColor(QColor(255, 255, 255, 255))
+
+    layout.addLayoutItem(map)
+    map.attemptResize(QgsLayoutSize(image_width, image_width / ratio, QgsUnitTypes.LayoutPixels))
+    layout.layoutBounds()
+
+    exporter = QgsLayoutExporter(layout)
+    image_settings = exporter.ImageExportSettings()
+    image_settings.cropMargins = QgsMargins(0, 0, 0, 0)
+    image_settings.cropToContent = True
+    image_settings.imageSize = im_size
+    image = exporter.renderRegionToImage(QRectF(0, 0, 100, 100), im_size)
+    image.save(image_location)
+
+    render_finish_callback()
