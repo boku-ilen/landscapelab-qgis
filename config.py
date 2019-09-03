@@ -7,7 +7,7 @@ class config:
     LEGO_READ_PORT = 5006
     UDP_BUFFER_SIZE = 1024
 
-    output_path = 'C:/landscapelab/qgis/{}.png'
+    output_path = 'C:/landscapelab-dev/qgis/{}.png'
 
     RENDER_KEYWORD = 'render:'
     UPDATE_KEYWORD = 'update:'
