@@ -5,6 +5,7 @@ from .config import config
 
 
 # code mainly from https://github.com/opensourceoptions/pyqgis-tutorials/blob/master/015_render-map-layer.py
+# renders the requested map extent and finally calls render_finish_callback
 def render_image(extent, crs_name, image_width, image_location, render_finish_callback):
 
     ratio = extent.width() / extent.height()

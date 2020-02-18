@@ -76,11 +76,14 @@ class RemoteRendering(QgsTask):
     def handle_request(self, request):
 
         if request.startswith(config.RENDER_KEYWORD):
+            # prepare request for information extraction
             render_info = request[len(config.RENDER_KEYWORD):]
             render_info = render_info.split(' ')
+
+            # extract information from request
             target_name = render_info[0]
             image_width = int(render_info[1])
-            crs = render_info[2]
+            coordinate_reference_system = render_info[2]
             extent_info = render_info[3:7]
 
             extent = QgsRectangle(
@@ -88,14 +91,22 @@ class RemoteRendering(QgsTask):
                 float(extent_info[2]), float(extent_info[3])
             )
 
+            # prepare response message
             update_msg = '{}{} {} {} {} {}'.format(
                 config.UPDATE_KEYWORD, target_name,
                 extent_info[0], extent_info[1], extent_info[2], extent_info[3]
             )
 
+            # define callback function that should be called when rendering finished
             render_finish_callback = partial(self.send, update_msg)
 
-            render_image(extent, crs, image_width, self.image_location.format(target_name), render_finish_callback)
+            render_image(
+                extent,
+                coordinate_reference_system,
+                image_width,
+                self.image_location.format(target_name),
+                render_finish_callback
+            )
 
     # sends a given message to the lego client
     def send(self, msg):
