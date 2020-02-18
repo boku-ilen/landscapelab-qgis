@@ -166,16 +166,17 @@ class RemoteRenderer:
     def initGui(self):
         """Create the menu entries and toolbar icons inside the QGIS GUI."""
 
-        icon_path = ':/plugins/remote_renderer/icon.png'
+        start_icon_path = ':/plugins/remote_renderer/icon.png'
+        refresh_icon_path = ':/plugins/remote_renderer/resources/icon_refresh.png'
         self.add_action(
-            icon_path,
+            start_icon_path,
             text=self.tr(u'Toggle Remote Rendering'),
             callback=self.toggle_rendering,
             parent=self.iface.mainWindow()
         )
 
         self.re_render_action = self.add_action(
-            icon_path,
+            refresh_icon_path,
             text=self.tr(u'Re-Render Last Request'),
             callback=self.re_render_last_request,
             parent=self.iface.mainWindow(),
