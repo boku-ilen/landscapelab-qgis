@@ -217,6 +217,7 @@ class RemoteRenderer:
             # substitute with your code.
             pass
 
+    # turns remote rendering task on / off
     def toggle_rendering(self):
 
         if self.render_task_active():
@@ -224,12 +225,14 @@ class RemoteRenderer:
         else:
             self.rendering_task = RemoteRendering.start_remote_rendering_task(self.update_re_render_action)
 
+    # checks if remote rendering task is active
     def render_task_active(self):
         if self.rendering_task is None:
             return False
 
         return self.rendering_task.active
 
+    # checks if there has been a previous render request and repeats the render process
     def re_render_last_request(self):
         if self.is_re_render_possible():
             self.rendering_task.handle_request(self.rendering_task.last_request)

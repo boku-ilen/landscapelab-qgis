@@ -9,13 +9,6 @@ from qgis.utils import *
 from .UtilityFunctions import render_image
 from .config import config
 
-"""
-NOTE: in order for this script to work, the QGIS plugin PowerPan has to be installed
-
-To run this make sure that the path to this file is included in sys.path
-then call 'import QGIS_POC1' in the QGIS pyton console
-"""
-
 
 class RemoteRendering(QgsTask):
 
@@ -73,6 +66,7 @@ class RemoteRendering(QgsTask):
             self.active = False
             self.finished_request_callback()
 
+    # reads request and acts accordingly
     def handle_request(self, request):
 
         if request.startswith(config.RENDER_KEYWORD):
