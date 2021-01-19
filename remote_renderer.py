@@ -8,8 +8,8 @@
                               -------------------
         begin                : 2019-08-19
         git sha              : $Format:%H$
-        copyright            : (C) 2019-20 by ILEN, BOKU Vienna
-        email                : landscapelab@boku.ac.at
+        copyright            : (C) 2019 by BOKU ILEN
+        email                : invalid@email.com
  ***************************************************************************/
 
 /***************************************************************************
