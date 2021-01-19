@@ -1,16 +1,14 @@
-# This file contains metadata for your plugin.
-
-# This file should be included when you package your plugin.# Mandatory items:
+# Mandatory items:
 
 [general]
-name=Remote Renderer
+name=LandscapeLab! Connector
 qgisMinimumVersion=3.0
-description=Communicates with other programs via sockets and renders requested extents
-version=0.1
-author=BOKU ILEN
-email=invalid@email.com
+description=Integrates LandscapeLab! GameTable and LandscapeLab! Client into QGIS
+version=0.2-dev
+author=ILEN, BOKU Vienna
+email=landscapelab@boku.ac.at
 
-about=Communicates with other programs via sockets and renders requested extents
+about=Integrates LandscapeLab! GameTable and LandscapeLab! Client into QGIS
 
 tracker=https://github.com/boku-ilen/landscapelab-qgis/issues
 repository=https://github.com/boku-ilen/landscapelab-qgis
@@ -44,4 +42,3 @@ Category of the plugin: Raster, Vector, Database or Web
 
 # If the plugin can run on QGIS Server.
 server=False
-
