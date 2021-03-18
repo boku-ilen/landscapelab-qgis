@@ -43,8 +43,9 @@ def render_image(extent, crs_name, image_width, image_location, render_finish_ca
     ms.setOutputSize(img.size())
 
     # render image
+    # TODO: we also can render via QPainter to a serializable QRect
     render_task = QgsMapRendererTask(ms, image_location, "PNG", False)
-    # render_task.addDecorations() TODO
+    # render_task.addDecorations() TODO: add scale, north arrow etc
     render_task.taskCompleted.connect(render_finish_callback)
     QgsApplication.taskManager().addTask(render_task)
 

@@ -102,7 +102,7 @@ class RemoteRendering(QgsTask):
                 render_finish_callback
             )
 
-    # sends a given message to the lego client
+    # sends a given message to the LabTable client
     def send(self, msg):
 
         self.socket.sendto(msg.encode(), self.write_target)
