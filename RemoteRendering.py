@@ -1,73 +1,42 @@
-# NOTE since this script is executed in the QGIS-Python environment
-#  PyCharm might wrongfully mark some libraries/classes as unknown
-import os
-import socket
 from typing import Callable
 from functools import partial
 from qgis.core import *
 from qgis.utils import *
-from .UtilityFunctions import render_image
+
+from PyQt5.QtGui import *
+from PyQt5.QtCore import QSize, QBuffer, QByteArray
+
+from .Communicator import Communicator
 from .config import config
 
 
+# this is the running task which controls the associated websockets server
+# and renders the image which has to be sent back
 class RemoteRendering(QgsTask):
 
-    def __init__(self, finished_request_callback: Callable):
+    communicator: Communicator = None
+    active: bool = False
+
+    def __init__(self):
         super().__init__('remote control listener task', QgsTask.CanCancel)
+        self.communicator = Communicator()
 
         QgsMessageLog.logMessage('setting up RemoteRendering Task', config.MESSAGE_CATEGORY, Qgis.Info)
 
-        # define image path
-        self.image_location = config.output_path
-
-        # setup UDP socket
-        self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        self.socket.bind((config.QGIS_IP, config.QGIS_READ_PORT))
-        self.write_target = (config.QGIS_IP, config.LEGO_READ_PORT)
-        self.active = False
-        self.last_request = None
-        self.finished_request_callback = finished_request_callback
-
-    # listens on socket for commands and
+    # executes the main task (start listening and waiting for connections)
     def run(self):
         self.active = True
-
-        try:
-            QgsMessageLog.logMessage('starting to listen for messages', config.MESSAGE_CATEGORY, Qgis.Info)
-            while True:
-
-                try:
-                    # wait for msg
-                    data, addr = self.socket.recvfrom(config.UDP_BUFFER_SIZE)
-                    data = data.decode()
-                    QgsMessageLog.logMessage('got message {} from address {}'.format(data, addr),
-                                             config.MESSAGE_CATEGORY, Qgis.Info)
-
-                    # if msg is exit stop
-                    if data == 'exit':
-                        self.socket.sendto(config.EXIT_KEYWORD.encode(), self.write_target)
-                        QgsMessageLog.logMessage('stop listening', config.MESSAGE_CATEGORY, Qgis.Info)
-                        return True
-
-                    self.handle_request(data)
-                    self.last_request = data
-                    self.finished_request_callback()
-
-                except ConnectionResetError:
-                    QgsMessageLog.logMessage('Connection was reset. Setting up new connection',
-                                             config.MESSAGE_CATEGORY, Qgis.Warning)
-                    self.socket.close()
-
-                    self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-                    self.socket.bind((config.QGIS_IP, config.QGIS_READ_PORT))
-
-        finally:
-            self.socket.close()
-            self.active = False
-            self.finished_request_callback()
+        QgsMessageLog.logMessage('starting to listen for messages', config.MESSAGE_CATEGORY, Qgis.Info)
+        self.communicator.start()
+        QgsMessageLog.logMessage('stop listening for messages', config.MESSAGE_CATEGORY, Qgis.Info)
+        self.active = False
+        return True
 
     # reads request and acts accordingly
     def handle_request(self, request):
+
+        QgsMessageLog.logMessage("received message: {}".format(request),
+                                 config.MESSAGE_CATEGORY, Qgis.Info)
 
         if request.startswith(config.RENDER_KEYWORD):
             # prepare request for information extraction
@@ -94,38 +63,76 @@ class RemoteRendering(QgsTask):
             # define callback function that should be called when rendering finished
             render_finish_callback = partial(self.send, update_msg)
 
-            render_image(
-                extent,
-                coordinate_reference_system,
-                image_width,
-                self.image_location.format(target_name),
-                render_finish_callback
-            )
+            rendered_image = render_image(extent, coordinate_reference_system, image_width,
+                self.image_location.format(target_name), render_finish_callback)
 
-    # sends a given message to the LabTable client
-    def send(self, msg):
-
-        self.socket.sendto(msg.encode(), self.write_target)
-        QgsMessageLog.logMessage('sent: {}'.format(msg), config.MESSAGE_CATEGORY, Qgis.Info)
+            self.send(rendered_image)
 
     # cancels the task
     def cancel(self):
-        RemoteRendering.stop_remote_rendering_task()
-        QgsMessageLog.logMessage('Task "{name}" was canceled'.format(name=self.description()),
-            config.MESSAGE_CATEGORY, Qgis.Info)
+        self.communicator.close()
         super().cancel()
+        self.active = False
+        QgsMessageLog.logMessage('Task "{name}" was canceled'.format(name=self.description()),
+                                 config.MESSAGE_CATEGORY, Qgis.Info)
 
-    @staticmethod
-    def start_remote_rendering_task(finished_request_callback: Callable):
-        remote_render_task = RemoteRendering(finished_request_callback)
-        QgsApplication.taskManager().addTask(remote_render_task)
 
-        return remote_render_task
+# code mainly from https://github.com/opensourceoptions/pyqgis-tutorials/blob/master/015_render-map-layer.py
+# renders the requested map extent and finally calls render_finish_callback
+def render_image(extent, crs_name, image_width, image_location, render_finish_callback):
 
-    @staticmethod
-    def stop_remote_rendering_task():
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            sock.sendto(config.EXIT_KEYWORD.encode(), (config.QGIS_IP, config.QGIS_READ_PORT))
-        finally:
-            sock.close()
+    ratio = extent.width() / extent.height()
+
+    # create image
+    img = QImage(QSize(image_width, image_width / ratio), QImage.Format_ARGB32_Premultiplied)
+
+    # set background color
+    color = QColor(255, 255, 255, 0)
+    img.fill(color.rgba())
+
+    # create map settings
+    ms = QgsMapSettings()
+    ms.setBackgroundColor(color)
+
+    # set layers to render
+    layers = QgsProject.instance().layerTreeRoot().layerOrder()
+    ms.setLayers(layers)
+    # TODO: define layers via parameters
+
+    # set extent
+    ms.setExtent(extent)
+
+    crs = QgsCoordinateReferenceSystem(crs_name)
+    if not crs.isValid():
+        QgsMessageLog.logMessage(
+            "ERROR: Invalid CRS! Aborting rendering process.", config.MESSAGE_CATEGORY, Qgis.Critical
+        )
+        return
+
+    ms.setDestinationCrs(crs)
+    # QApplication.processEvents()
+
+    # set output size
+    ms.setOutputSize(img.size())
+
+    # render image
+    # TODO: we also can render via QPainter to a serializable QRect
+    qp = QPainter(img)
+    render = QgsMapRendererCustomPainterJob(ms, qp)
+    render.start()
+    render.waitForFinished()
+    # render_task = QgsMapRendererTask(ms, qp)
+    # render_task = QgsMapRendererTask(ms, image_location, "PNG", False)
+    # render_task.addDecorations() TODO: add scale, north arrow etc
+    # render_task.taskCompleted.connect(render_finish_callback)
+    # QgsApplication.taskManager().addTask(render_task)
+
+    # FIXME: this would be the alternative?
+    # this might go to render_finish_callback?
+    qp.end()
+    ba = QByteArray()
+    buf = QBuffer(ba)
+    buf.open(QBuffer.WriteOnly)
+    img.save(buf, 'PNG')
+    data = ba.data()
+    return data
