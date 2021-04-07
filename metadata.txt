@@ -6,9 +6,9 @@
 name=Remote Renderer
 qgisMinimumVersion=3.0
 description=Communicates with other programs via sockets and renders requested extents
-version=0.1
-author=BOKU ILEN
-email=invalid@email.com
+version=0.5
+author=BOKU ILEN, Moritz Roth, Christoph Graf
+email=christoph.graf@boku.ac.at
 
 about=Communicates with other programs via sockets and renders requested extents
 
