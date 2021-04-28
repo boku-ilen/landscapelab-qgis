@@ -19,8 +19,7 @@ class RemoteRendering(QgsTask):
 
     def __init__(self):
         super().__init__('remote control listener task', QgsTask.CanCancel)
-        self.communicator = Communicator()
-
+        self.communicator = Communicator(self)
         QgsMessageLog.logMessage('setting up RemoteRendering Task', config.MESSAGE_CATEGORY, Qgis.Info)
 
     # executes the main task (start listening and waiting for connections)
@@ -29,48 +28,42 @@ class RemoteRendering(QgsTask):
         QgsMessageLog.logMessage('starting to listen for messages', config.MESSAGE_CATEGORY, Qgis.Info)
         self.communicator.start()
         QgsMessageLog.logMessage('stop listening for messages', config.MESSAGE_CATEGORY, Qgis.Info)
+        self.communicator.stop()
         self.active = False
         return True
 
     # reads request and acts accordingly
-    def handle_request(self, request):
+    def handle_rendering_request(self, request: dict) -> dict:
 
-        QgsMessageLog.logMessage("received message: {}".format(request),
-                                 config.MESSAGE_CATEGORY, Qgis.Info)
+        QgsMessageLog.logMessage("received message: {}".format(request), config.MESSAGE_CATEGORY, Qgis.Info)
 
-        if request.startswith(config.RENDER_KEYWORD):
-            # prepare request for information extraction
-            render_info = request[len(config.RENDER_KEYWORD):]
-            render_info = render_info.split(' ')
+        # extract information from request
+        target_name = request["target"]
+        image_width = int(request["resolution"])
+        coordinate_reference_system = request["crs"]
+        extent = QgsRectangle(float(request["extent"]["min_x"]), float(request["extent"]["min_y"]),
+                              float(request["extent"]["max_x"]), float(request["extent"]["max_y"]))
 
-            # extract information from request
-            target_name = render_info[0]
-            image_width = int(render_info[1])
-            coordinate_reference_system = render_info[2]
-            extent_info = render_info[3:7]
+        # set coordinate system
+        crs = QgsCoordinateReferenceSystem(coordinate_reference_system)
+        if not crs.isValid():
+            QgsMessageLog.logMessage(
+                "ERROR: Invalid CRS! Aborting rendering process.", config.MESSAGE_CATEGORY, Qgis.Critical
+                )
+            return {}
 
-            extent = QgsRectangle(
-                float(extent_info[0]), float(extent_info[1]),
-                float(extent_info[2]), float(extent_info[3])
-            )
-
-            # prepare response message
-            update_msg = '{}{} {} {} {} {}'.format(
-                config.UPDATE_KEYWORD, target_name,
-                extent_info[0], extent_info[1], extent_info[2], extent_info[3]
-            )
-
-            # define callback function that should be called when rendering finished
-            render_finish_callback = partial(self.send, update_msg)
-
-            rendered_image = render_image(extent, coordinate_reference_system, image_width,
-                self.image_location.format(target_name), render_finish_callback)
-
-            self.send(rendered_image)
+        # prepare response message
+        rendered_image = render_image(extent, crs, image_width)
+        answer = {
+            "target": target_name,
+            "extent": request["extent"],
+            "image": rendered_image
+        }
+        return answer
 
     # cancels the task
     def cancel(self):
-        self.communicator.close()
+        self.communicator.stop()
         super().cancel()
         self.active = False
         QgsMessageLog.logMessage('Task "{name}" was canceled'.format(name=self.description()),
@@ -78,12 +71,11 @@ class RemoteRendering(QgsTask):
 
 
 # code mainly from https://github.com/opensourceoptions/pyqgis-tutorials/blob/master/015_render-map-layer.py
-# renders the requested map extent and finally calls render_finish_callback
-def render_image(extent, crs_name, image_width, image_location, render_finish_callback):
-
-    ratio = extent.width() / extent.height()
+# renders the requested map extent and returns the image as string? TODO
+def render_image(extent: QgsRectangle, crs: QgsCoordinateReferenceSystem, image_width: int):
 
     # create image
+    ratio = extent.width() / extent.height()
     img = QImage(QSize(image_width, image_width / ratio), QImage.Format_ARGB32_Premultiplied)
 
     # set background color
@@ -99,40 +91,21 @@ def render_image(extent, crs_name, image_width, image_location, render_finish_ca
     ms.setLayers(layers)
     # TODO: define layers via parameters
 
-    # set extent
+    # set extent & crs
     ms.setExtent(extent)
-
-    crs = QgsCoordinateReferenceSystem(crs_name)
-    if not crs.isValid():
-        QgsMessageLog.logMessage(
-            "ERROR: Invalid CRS! Aborting rendering process.", config.MESSAGE_CATEGORY, Qgis.Critical
-        )
-        return
-
     ms.setDestinationCrs(crs)
-    # QApplication.processEvents()
-
-    # set output size
     ms.setOutputSize(img.size())
 
     # render image
-    # TODO: we also can render via QPainter to a serializable QRect
     qp = QPainter(img)
     render = QgsMapRendererCustomPainterJob(ms, qp)
     render.start()
     render.waitForFinished()
-    # render_task = QgsMapRendererTask(ms, qp)
-    # render_task = QgsMapRendererTask(ms, image_location, "PNG", False)
-    # render_task.addDecorations() TODO: add scale, north arrow etc
-    # render_task.taskCompleted.connect(render_finish_callback)
-    # QgsApplication.taskManager().addTask(render_task)
-
-    # FIXME: this would be the alternative?
-    # this might go to render_finish_callback?
     qp.end()
     ba = QByteArray()
     buf = QBuffer(ba)
     buf.open(QBuffer.WriteOnly)
     img.save(buf, 'PNG')
     data = ba.data()
+
     return data

@@ -2,12 +2,12 @@
 
 
 class config:
-    QGIS_IP = "127.0.0.1"
+    QGIS_IP = "192.168.0.38"
     QGIS_READ_PORT = 5005
-    LEGO_READ_PORT = 5006
+    TABLE_READ_PORT = 5006
     UDP_BUFFER_SIZE = 1024
 
-    output_path = 'C:/landscapelab-dev/qgis/{}.png'
+    output_path = '/tmp/{}.png'
 
     RENDER_KEYWORD = 'render:'
     UPDATE_KEYWORD = 'update:'

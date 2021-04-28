@@ -1,10 +1,13 @@
+from json import JSONDecodeError
+
+import json
+
 import socket
 
 import websockets
 import asyncio
-from qgis.core import QgsMessageLog, Qgis
 
-from .config import config
+from .RemoteRendering import RemoteRendering
 
 DEFAULT_PORT = 5004
 
@@ -15,30 +18,53 @@ class Communicator:
 
     new_loop = None
     ws_server: websockets.WebSocketServer = None
+    remote_renderer: RemoteRendering = None
 
-    def __init__(self):
+    def __init__(self, remote_renderer: RemoteRendering):
         # generate a new dedicated event loop as this is run in
         # a separate thread        
         self.new_loop = asyncio.new_event_loop()
+        self.remote_renderer = remote_renderer
 
     def start(self):
 
         # initialize websocket connection
         # FIXME: make binding address configurable
         asyncio.set_event_loop(self.new_loop)
+        # FIXME: restarting the websockets server currently does not work
         ws_future = websockets.serve(self.on_request, socket.gethostname(), DEFAULT_PORT)
 
         # initialize server and run the event loop to listen for messages
         self.ws_server = self.new_loop.run_until_complete(ws_future)
         self.new_loop.run_forever()
 
-    # this method is invoked on receiving a message
+    # this method is invoked on receiving a connection
     async def on_request(self, websocket, path):
 
-        name = await websocket.recv()
-        await websocket.send(name)
+        active = True
+        while active:
+            json_message = await websocket.recv()
+            try:
+                dict_message = json.loads(json_message)
+                if dict_message["command"] == "quit":
+                    active = False
+                else:
+                    # TODO: we might want to dispatch different requests in the future
+                    dict_answer = self.remote_renderer.handle_rendering_request(dict_message)
+                    await self.send(websocket, dict_answer)
+
+            except JSONDecodeError:
+                await self.send(websocket, {"success": False, "error": "no valid request"})
+
+    async def send(self, websocket, dict_message: dict):
+        json_message = json.dumps(dict_message)
+        websocket.send(json_message)
 
     # stopping the server
     def close(self):
-        self.ws_server.wait_closed()
+        # FIXME: this does not seem to really close the websockets server
+        self.new_loop.call_soon_threadsafe(self.ws_server.close)
+        self.new_loop.call_soon_threadsafe(self.ws_server.wait_closed)
+
+    def stop(self):
         self.new_loop.call_soon_threadsafe(self.new_loop.stop)

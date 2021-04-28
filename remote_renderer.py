@@ -37,9 +37,6 @@ class RemoteRenderer:
         self.actions = []
         self.menu = u'&Remote Renderer'
 
-        self.rendering_task = RemoteRendering()
-        self.re_render_action = None
-
     # adding plugin actions to QGIS
     def add_action(self, icon_path, text, callback, enabled_flag=True, add_to_menu=True,
                    add_to_toolbar=True, status_tip=None, whats_this=None, parent=None):
@@ -85,11 +82,9 @@ class RemoteRenderer:
 
     # turns remote rendering task on / off
     def toggle_rendering(self):
+        if self.rendering_task and self.rendering_task.active:
+            self.rendering_task.cancel()
+            return
 
-        if self.rendering_task:
-            if self.rendering_task.active:
-                self.rendering_task.cancel()
-            else:
-                # FIXME: when stoppend and restarted this currently fails as
-                # FIXME: C++ seems to deallocate the object while canceling
-                QgsApplication.taskManager().addTask(self.rendering_task)
+        self.rendering_task = RemoteRendering()
+        QgsApplication.taskManager().addTask(self.rendering_task)
