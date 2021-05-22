@@ -15,13 +15,8 @@
 """
 
 
-# noinspection PyPep8Naming
-def classFactory(iface):  # pylint: disable=invalid-name
-    """Load RemoteRenderer class from file RemoteRenderer.
+# Load RemoteRenderer class from file RemoteRenderer
+def classFactory(iface):
 
-    :param iface: A QGIS interface instance.
-    :type iface: QgsInterface
-    """
-    #
     from .remote_renderer import RemoteRenderer
     return RemoteRenderer(iface)

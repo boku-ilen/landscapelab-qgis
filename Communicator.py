@@ -7,8 +7,6 @@ import socket
 import websockets
 import asyncio
 
-from .RemoteRendering import RemoteRendering
-
 DEFAULT_PORT = 5004
 
 
@@ -18,9 +16,9 @@ class Communicator:
 
     new_loop = None
     ws_server: websockets.WebSocketServer = None
-    remote_renderer: RemoteRendering = None
+    remote_renderer = None
 
-    def __init__(self, remote_renderer: RemoteRendering):
+    def __init__(self, remote_renderer):
         # generate a new dedicated event loop as this is run in
         # a separate thread        
         self.new_loop = asyncio.new_event_loop()

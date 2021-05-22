@@ -1,5 +1,3 @@
-from typing import Callable
-from functools import partial
 from qgis.core import *
 from qgis.utils import *
 
