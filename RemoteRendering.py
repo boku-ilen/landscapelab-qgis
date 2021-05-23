@@ -5,7 +5,8 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import QSize, QBuffer, QByteArray
 
 from .Communicator import Communicator
-from .config import config
+
+MESSAGE_CATEGORY = "LL Remote Rendering"
 
 
 # this is the running task which controls the associated websockets server
@@ -18,14 +19,17 @@ class RemoteRendering(QgsTask):
     def __init__(self):
         super().__init__('remote control listener task', QgsTask.CanCancel)
         self.communicator = Communicator(self)
-        QgsMessageLog.logMessage('setting up RemoteRendering Task', config.MESSAGE_CATEGORY, Qgis.Info)
+        QgsMessageLog.logMessage('setting up RemoteRendering Task',
+                                 MESSAGE_CATEGORY, Qgis.Info)
 
     # executes the main task (start listening and waiting for connections)
     def run(self):
         self.active = True
-        QgsMessageLog.logMessage('starting to listen for messages', config.MESSAGE_CATEGORY, Qgis.Info)
+        QgsMessageLog.logMessage('starting to listen for messages',
+                                 MESSAGE_CATEGORY, Qgis.Info)
         self.communicator.start()
-        QgsMessageLog.logMessage('stop listening for messages', config.MESSAGE_CATEGORY, Qgis.Info)
+        QgsMessageLog.logMessage('stop listening for messages',
+                                 MESSAGE_CATEGORY, Qgis.Info)
         self.communicator.stop()
         self.active = False
         return True
@@ -33,7 +37,8 @@ class RemoteRendering(QgsTask):
     # reads request and acts accordingly
     def handle_rendering_request(self, request: dict) -> dict:
 
-        QgsMessageLog.logMessage("received message: {}".format(request), config.MESSAGE_CATEGORY, Qgis.Info)
+        QgsMessageLog.logMessage("received message: {}".format(request),
+                                 MESSAGE_CATEGORY, Qgis.Info)
 
         # extract information from request
         target_name = request["target"]
@@ -45,9 +50,8 @@ class RemoteRendering(QgsTask):
         # set coordinate system
         crs = QgsCoordinateReferenceSystem(coordinate_reference_system)
         if not crs.isValid():
-            QgsMessageLog.logMessage(
-                "ERROR: Invalid CRS! Aborting rendering process.", config.MESSAGE_CATEGORY, Qgis.Critical
-                )
+            QgsMessageLog.logMessage("ERROR: Invalid CRS! Aborting rendering process.",
+                                     MESSAGE_CATEGORY, Qgis.Critical)
             return {}
 
         # prepare response message
@@ -65,7 +69,7 @@ class RemoteRendering(QgsTask):
         super().cancel()
         self.active = False
         QgsMessageLog.logMessage('Task "{name}" was canceled'.format(name=self.description()),
-                                 config.MESSAGE_CATEGORY, Qgis.Info)
+                                 MESSAGE_CATEGORY, Qgis.Info)
 
 
 # code mainly from https://github.com/opensourceoptions/pyqgis-tutorials/blob/master/015_render-map-layer.py

@@ -7,7 +7,7 @@ import socket
 import websockets
 import asyncio
 
-DEFAULT_PORT = 5004
+DEFAULT_PORT = 5005
 
 
 # this class implements a websocket server within the QGIS plugin
@@ -27,8 +27,8 @@ class Communicator:
     def start(self):
 
         # initialize websocket connection
-        # FIXME: make binding address configurable
         asyncio.set_event_loop(self.new_loop)
+        # FIXME: make binding address configurable
         # FIXME: restarting the websockets server currently does not work
         ws_future = websockets.serve(self.on_request, socket.gethostname(), DEFAULT_PORT)
 
@@ -56,7 +56,7 @@ class Communicator:
 
     async def send(self, websocket, dict_message: dict):
         json_message = json.dumps(dict_message)
-        websocket.send(json_message)
+        await websocket.send(json_message)
 
     # stopping the server
     def close(self):

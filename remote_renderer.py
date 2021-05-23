@@ -17,7 +17,6 @@ from qgis.PyQt.QtWidgets import QAction
 from qgis.core import QgsApplication
 
 from .resources import *  # this is required
-from .config import config
 
 # Import the code for the dialog
 from .RemoteRendering import RemoteRendering
