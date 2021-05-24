@@ -50,6 +50,8 @@ class Communicator:
                 else:
                     # TODO: we might want to dispatch different requests in the future based on path
                     dict_answer = self.remote_renderer.handle_rendering_request(dict_message)
+                    dict_answer["message_id"] = dict_message["message_id"]
+                    dict_answer["success"] = True
                     await self.send(websocket, dict_answer)
 
             except JSONDecodeError as e:
