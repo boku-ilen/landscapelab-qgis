@@ -6,6 +6,7 @@ import socket
 
 import websockets
 import asyncio
+from websockets import WebSocketException
 
 DEFAULT_PORT = 5005
 
@@ -44,19 +45,28 @@ class Communicator:
             json_message = await websocket.recv()
             try:
                 dict_message = json.loads(json_message)
-                if dict_message["command"] == "quit":
+                if dict_message["keyword"] == "quit":
                     active = False
                 else:
-                    # TODO: we might want to dispatch different requests in the future
+                    # TODO: we might want to dispatch different requests in the future based on path
                     dict_answer = self.remote_renderer.handle_rendering_request(dict_message)
                     await self.send(websocket, dict_answer)
 
-            except JSONDecodeError:
-                await self.send(websocket, {"success": False, "error": "no valid request"})
+            except JSONDecodeError as e:
+                await self.send(websocket, {"success": False, "error": e.msg})
 
     async def send(self, websocket, dict_message: dict):
-        json_message = json.dumps(dict_message)
-        await websocket.send(json_message)
+        try:
+            json_message = json.dumps(dict_message)
+            await websocket.send(json_message)
+        except TypeError as e:
+            self.remote_renderer.log("TypeError: {}".format(e))
+        except ValueError as e:
+            self.remote_renderer.log("ValueError: {}".format(e))
+        except OverflowError as e:
+            self.remote_renderer.log("OverflowError: {}".format(e))
+        except WebSocketException as e:
+            self.remote_renderer.log("WebSocketException: {}".format(e))
 
     # stopping the server
     def close(self):

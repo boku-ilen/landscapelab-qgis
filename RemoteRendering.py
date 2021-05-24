@@ -44,8 +44,13 @@ class RemoteRendering(QgsTask):
         target_name = request["target"]
         image_width = int(request["resolution"])
         coordinate_reference_system = request["crs"]
-        extent = QgsRectangle(float(request["extent"]["min_x"]), float(request["extent"]["min_y"]),
-                              float(request["extent"]["max_x"]), float(request["extent"]["max_y"]))
+
+        extent = QgsRectangle(float(request["extent"]["x_min"]), float(request["extent"]["y_min"]),
+                              float(request["extent"]["x_max"]), float(request["extent"]["y_max"]))
+        if not extent.isFinite():
+            QgsMessageLog.logMessage("ERROR: Invalid Extent! Aborting rendering process.",
+                                     MESSAGE_CATEGORY, Qgis.Critical)
+            return {}
 
         # set coordinate system
         crs = QgsCoordinateReferenceSystem(coordinate_reference_system)
@@ -59,8 +64,10 @@ class RemoteRendering(QgsTask):
         answer = {
             "target": target_name,
             "extent": request["extent"],
-            "image": rendered_image
+            "image": rendered_image.decode("ascii")
         }
+        QgsMessageLog.logMessage("answer message: {}".format(answer),
+                                 MESSAGE_CATEGORY, Qgis.Info)
         return answer
 
     # cancels the task
@@ -71,6 +78,9 @@ class RemoteRendering(QgsTask):
         QgsMessageLog.logMessage('Task "{name}" was canceled'.format(name=self.description()),
                                  MESSAGE_CATEGORY, Qgis.Info)
 
+    def log(self, text):
+        QgsMessageLog.logMessage('{}'.format(text), MESSAGE_CATEGORY, Qgis.Info)
+
 
 # code mainly from https://github.com/opensourceoptions/pyqgis-tutorials/blob/master/015_render-map-layer.py
 # renders the requested map extent and returns the image as string? TODO
@@ -78,7 +88,7 @@ def render_image(extent: QgsRectangle, crs: QgsCoordinateReferenceSystem, image_
 
     # create image
     ratio = extent.width() / extent.height()
-    img = QImage(QSize(image_width, image_width / ratio), QImage.Format_ARGB32_Premultiplied)
+    img = QImage(QSize(image_width, image_width // ratio), QImage.Format_ARGB32_Premultiplied)
 
     # set background color
     color = QColor(255, 255, 255, 0)
@@ -108,6 +118,6 @@ def render_image(extent: QgsRectangle, crs: QgsCoordinateReferenceSystem, image_
     buf = QBuffer(ba)
     buf.open(QBuffer.WriteOnly)
     img.save(buf, 'PNG')
-    data = ba.data()
 
-    return data
+    # encode as Base64 for network transport
+    return ba.toBase64(QByteArray.Base64Encoding).data()
