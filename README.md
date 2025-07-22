@@ -1,4 +1,9 @@
 # landscapelab-qgis
+
+**This respository is not used anymore and may be defunct**. We developed it to obtain map renderings from QGIS in real-time for a separate visualization application. This worked, but it was fairly slow, not very stable, and limited. That's why we eventually switched to pre-processed MBTiles (using QGIS' "Generate XYZ Tiles" algorithm).
+
+## Old README
+
 a qgis plugin that allows remote controlled rendering and dynamic geodata-visualisation
 
 Setup
